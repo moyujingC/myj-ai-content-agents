@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from myj_ai_content_agents.config import get_config
 from myj_ai_content_agents.knowledge.dedao_brain import DedaoBrainSource
 from myj_ai_content_agents.knowledge.local_markdown import LocalMarkdownSource
+from myj_ai_content_agents.llm import LLMClient
 from myj_ai_content_agents.models import AccountConfig, ContentType, ContentUnit, Topic
 from myj_ai_content_agents.skills.assembly import ContentAssemblySkill
 from myj_ai_content_agents.skills.interview import ContentInterviewSkill
@@ -19,9 +20,10 @@ from myj_ai_content_agents.store import ContentStore
 class ContentUnitAgent:
     """内容生产 Agent：单 Agent 多 Skill."""
 
-    def __init__(self, store: ContentStore | None = None) -> None:
+    def __init__(self, store: ContentStore | None = None, llm: LLMClient | None = None) -> None:
         self.config = get_config()
         self.store = store or ContentStore(self.config.runtime_dir / "myj_ai_content_agents.db")
+        self.llm = llm
         self._setup_knowledge_sources()
 
     def _setup_knowledge_sources(self) -> None:
@@ -59,35 +61,49 @@ class ContentUnitAgent:
         stop_at: str | None = None,
     ) -> ContentUnit:
         """运行内容生产工作流."""
-        machine = ContentUnitStateMachine(unit)
+        material = None
 
         if unit.status == "created":
-            material = self.interview_skill.run(unit)
-            # 重新加载以获取最新状态
-            unit = self.store.get_unit(unit.id) or unit
-            machine = ContentUnitStateMachine(unit)
-            machine.move("interviewing", f"Skill {self.interview_skill.name} 完成")
+            material = self.interview_skill.interview(unit)
+            unit = self.interview_skill.run(unit)
+            self.store.save_unit(unit)
 
         if stop_at == "interviewing":
-            self.store.save_unit(unit)
             return unit
 
         if unit.status == "interviewing":
-            assembly = ContentAssemblySkill(account)
-            # TODO: 传递 material
-            unit = assembly.run(unit, material={})
-            machine = ContentUnitStateMachine(unit)
-            machine.move("assembling", f"Skill {assembly.name} 完成")
+            if material is None:
+                material = self.interview_skill.interview(unit)
+            assembly = ContentAssemblySkill(account, llm=self.llm)
+            unit = assembly.run(unit, material=material)
+            self.store.save_unit(unit)
 
         if stop_at == "assembling":
-            self.store.save_unit(unit)
             return unit
 
         if unit.status == "assembling":
             review = ContentReviewSkill(account)
             unit = review.run(unit)
-            machine = ContentUnitStateMachine(unit)
-            machine.move("reviewing", f"Skill {review.name} 完成")
+            self.store.save_unit(unit)
 
+        return unit
+
+    def approve(self, unit_id: str, reviewer: str, note: str) -> ContentUnit:
+        """人工审核通过."""
+        unit = self.store.get_unit(unit_id)
+        if not unit:
+            raise ValueError(f"内容单元不存在: {unit_id}")
+        machine = ContentUnitStateMachine(unit)
+        machine.approve(reviewer, note)
+        self.store.save_unit(unit)
+        return unit
+
+    def request_rework(self, unit_id: str, reviewer: str, note: str) -> ContentUnit:
+        """请求返工."""
+        unit = self.store.get_unit(unit_id)
+        if not unit:
+            raise ValueError(f"内容单元不存在: {unit_id}")
+        machine = ContentUnitStateMachine(unit)
+        machine.request_rework(reviewer, note)
         self.store.save_unit(unit)
         return unit

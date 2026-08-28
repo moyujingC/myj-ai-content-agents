@@ -9,9 +9,15 @@ from pathlib import Path
 from myj_ai_content_agents.agent import ContentUnitAgent
 from myj_ai_content_agents.config import get_config
 from myj_ai_content_agents.eval import evaluate
+from myj_ai_content_agents.llm import KimiClient
 from myj_ai_content_agents.models import ContentType, Topic
 from myj_ai_content_agents.state_machine import ContentUnitStateMachine
 from myj_ai_content_agents.store import ContentStore
+
+
+def _create_agent() -> ContentUnitAgent:
+    """创建带 LLM 的 Agent."""
+    return ContentUnitAgent(llm=KimiClient())
 
 
 def cmd_demo(args: argparse.Namespace) -> int:
@@ -19,7 +25,7 @@ def cmd_demo(args: argparse.Namespace) -> int:
     config = get_config()
     config.ensure_runtime_dir()
 
-    agent = ContentUnitAgent()
+    agent = _create_agent()
     account = config.load_account(args.account or config.default_account)
     topic = Topic(
         id="demo-topic-001",
@@ -45,7 +51,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     config = get_config()
     config.ensure_runtime_dir()
 
-    agent = ContentUnitAgent()
+    agent = _create_agent()
     account = config.load_account(args.account)
     topic = Topic(
         id=f"topic-{args.topic_hash or 'manual'}",

@@ -6,6 +6,9 @@ import os
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 from .models import AccountConfig
 

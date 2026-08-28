@@ -1,6 +1,6 @@
 id: enterprise-ai
 name: 企业 AI 落地
-account_tone: personal-ip
+tone: personal-ip
 target_audience: 30-200 人成长型公司的创始人 / CEO / 一号位
 content_logic: 70% 干货 + 20% 真实案例 + 10% 个人思考与价值观
 platforms:
