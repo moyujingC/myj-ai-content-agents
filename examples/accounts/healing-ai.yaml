@@ -1,0 +1,15 @@
+id: healing-ai
+name: 疗愈师 AI 课
+account_tone: acquisition
+target_audience: 独立疗愈师、心理咨询师、身心灵从业者
+content_logic: 90% 干货 + 10% 转化钩子
+platforms:
+  - 小红书
+  - 抖音
+  - 视频号
+default_content_type: opinion
+style_notes: |
+  信息密集、可复制、低门槛。
+  直接给方法、给步骤、给工具，减少个人故事。
+  多用短段落、表情符号、清单体。
+  结尾引导加微信或下单课程。
