@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timezone
 
 from myj_ai_content_agents.config import get_config
-from myj_ai_content_agents.knowledge.dedao_brain import DedaoBrainSource
+from myj_ai_content_agents.knowledge.getnote import GetNoteSource
 from myj_ai_content_agents.knowledge.local_markdown import LocalMarkdownSource
 from myj_ai_content_agents.llm import LLMClient
 from myj_ai_content_agents.models import AccountConfig, ContentType, ContentUnit, Topic
@@ -31,8 +31,14 @@ class ContentUnitAgent:
         sources = []
         if self.config.knowledge_paths:
             sources.append(LocalMarkdownSource(self.config.knowledge_paths))
-        if self.config.dedao_api_key and self.config.dedao_base_url:
-            sources.append(DedaoBrainSource(self.config.dedao_api_key, self.config.dedao_base_url))
+        if self.config.getnote_api_key and self.config.getnote_client_id:
+            sources.append(
+                GetNoteSource(
+                    api_key=self.config.getnote_api_key,
+                    client_id=self.config.getnote_client_id,
+                    base_url=self.config.getnote_base_url,
+                )
+            )
         self.interview_skill = ContentInterviewSkill(sources)
 
     def create_unit(

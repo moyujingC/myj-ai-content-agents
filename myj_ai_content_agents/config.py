@@ -25,8 +25,13 @@ class Config:
         self.kimi_base_url = os.getenv("KIMI_BASE_URL", "https://api.moonshot.cn/v1")
         self.kimi_model = os.getenv("KIMI_MODEL", "kimi-k3")
 
-        self.dedao_api_key = os.getenv("DEDAO_BRAIN_API_KEY", "")
-        self.dedao_base_url = os.getenv("DEDAO_BRAIN_BASE_URL", "")
+        # Get笔记（biji.com）个人开发者配置
+        self.getnote_api_key = os.getenv("GETNOTE_API_KEY", "")
+        self.getnote_client_id = os.getenv("GETNOTE_CLIENT_ID", "")
+        self.getnote_base_url = os.getenv("GETNOTE_BASE_URL", "https://openapi.biji.com/open")
+
+        # Get笔记企业代授权配置（可选）
+        self.getnote_grant_id = os.getenv("GETNOTE_GRANT_ID", "")
 
         raw_paths = os.getenv("CUA_KNOWLEDGE_PATHS", "")
         self.knowledge_paths = [Path(p.strip()) for p in raw_paths.split(",") if p.strip()]
