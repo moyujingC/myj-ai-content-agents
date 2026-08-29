@@ -63,6 +63,9 @@ class GetNoteSource(KnowledgeSource):
         """知识库语义召回.
 
         通过向量/语义相似度，从指定知识库中召回与查询最相关的笔记片段。
+
+        注意：该接口目前主要面向企业代授权模式。个人开发者模式调用可能返回 404，
+        此时 query() 会自动回退到关键词筛选。
         """
         body: dict[str, Any] = {
             "query": query,
@@ -78,12 +81,20 @@ class GetNoteSource(KnowledgeSource):
     def query(self, topic: str, max_notes: int = 20, **kwargs: Any) -> list[dict[str, Any]]:
         """根据选题查询相关笔记.
 
-        如果配置了 topic_id，优先使用知识库语义召回；
+        如果配置了 topic_id 且语义召回接口可用，优先使用语义召回；
         否则回退到拉取最近笔记并按关键词筛选。
         """
         effective_topic_id = kwargs.get("topic_id") or self.topic_id
         if effective_topic_id:
-            return self._query_by_recall(topic, effective_topic_id, max_notes)
+            try:
+                return self._query_by_recall(topic, effective_topic_id, max_notes)
+            except RuntimeError as exc:
+                # 个人开发者模式可能不支持语义召回，回退到关键词筛选
+                import re
+                if "404" in str(exc):
+                    print(f"[GetNote] 语义召回不可用（{exc}），回退到关键词筛选")
+                else:
+                    raise
 
         keywords = self._extract_keywords(topic)
         all_notes: list[dict[str, Any]] = []
@@ -122,13 +133,13 @@ class GetNoteSource(KnowledgeSource):
 
         return [
             {
-                "content": note.get("content", ""),
-                "title": note.get("title", ""),
-                "source": f"getnote://note/{note.get('note_id', note.get('id', ''))}",
+                "content": item["note"].get("content", ""),
+                "title": item["note"].get("title", ""),
+                "source": f"getnote://note/{item['note'].get('note_id', item['note'].get('id', ''))}",
                 "section": "",
-                "score": score,
+                "score": item["score"],
             }
-            for note, score in selected
+            for item in selected
         ]
 
     def _query_by_recall(self, topic: str, topic_id: str, max_notes: int) -> list[dict[str, Any]]:

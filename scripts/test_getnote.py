@@ -68,8 +68,12 @@ def main() -> None:
         try:
             result = source.recall("企业 AI 项目 POC 失败的原因", top_k=3)
             print(f"响应: {result}")
-        except Exception as exc:
-            print(f"失败: {exc}")
+        except RuntimeError as exc:
+            if "404" in str(exc):
+                print(f"个人模式暂不支持语义召回接口（{exc}）")
+                print("query() 已自动回退到关键词筛选")
+            else:
+                print(f"失败: {exc}")
     else:
         print("跳过：未配置 GETNOTE_TOPIC_ID")
 
