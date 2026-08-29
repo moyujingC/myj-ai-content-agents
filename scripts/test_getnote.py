@@ -27,6 +27,7 @@ def main() -> None:
         api_key=config.getnote_api_key,
         client_id=config.getnote_client_id,
         base_url=config.getnote_base_url,
+        topic_id=config.getnote_topic_id or None,
     )
 
     print("=" * 50)
@@ -39,7 +40,16 @@ def main() -> None:
         print(f"失败: {exc}")
 
     print("\n" + "=" * 50)
-    print("测试 2：按选题查询相关笔记")
+    print("测试 2：获取知识库列表")
+    print("=" * 50)
+    try:
+        result = source.list_topics(limit=5)
+        print(f"响应: {result}")
+    except Exception as exc:
+        print(f"失败: {exc}")
+
+    print("\n" + "=" * 50)
+    print("测试 3：按选题查询相关笔记")
     print("=" * 50)
     try:
         notes = source.query("企业 AI 落地", max_notes=3)
@@ -50,6 +60,18 @@ def main() -> None:
             print()
     except Exception as exc:
         print(f"失败: {exc}")
+
+    print("\n" + "=" * 50)
+    print("测试 4：知识库语义召回")
+    print("=" * 50)
+    if source.topic_id:
+        try:
+            result = source.recall("企业 AI 项目 POC 失败的原因", top_k=3)
+            print(f"响应: {result}")
+        except Exception as exc:
+            print(f"失败: {exc}")
+    else:
+        print("跳过：未配置 GETNOTE_TOPIC_ID")
 
 
 if __name__ == "__main__":

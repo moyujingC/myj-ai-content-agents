@@ -13,13 +13,20 @@ class GetNoteSource(KnowledgeSource):
     """Get笔记 API 适配器.
 
     个人开发者模式：使用 Client ID + API Key 直接调用接口，
-    读取当前账号下的笔记内容。
+    读取当前账号下的笔记内容，并支持知识库语义召回。
     """
 
-    def __init__(self, api_key: str, client_id: str, base_url: str = "https://openapi.biji.com/open") -> None:
+    def __init__(
+        self,
+        api_key: str,
+        client_id: str,
+        base_url: str = "https://openapi.biji.com/open",
+        topic_id: str | None = None,
+    ) -> None:
         self.api_key = api_key
         self.client_id = client_id
         self.base_url = base_url.rstrip("/")
+        self.topic_id = topic_id
 
     def _headers(self) -> dict[str, str]:
         return {
@@ -45,11 +52,39 @@ class GetNoteSource(KnowledgeSource):
             params["cursor"] = cursor
         return self._request("GET", "/api/v1/resource/note/list", params=params)
 
-    def query(self, topic: str, max_notes: int = 20, **kwargs: Any) -> list[dict[str, Any]]:
-        """根据选题关键词查询相关笔记.
+    def list_topics(self, cursor: str | None = None, limit: int = 20) -> dict[str, Any]:
+        """获取知识库（topic）列表."""
+        params: dict[str, Any] = {"limit": limit}
+        if cursor:
+            params["cursor"] = cursor
+        return self._request("GET", "/api/v1/resource/topic/list", params=params)
 
-        当前实现：拉取最近笔记，按标题和内容与选题关键词的相关性筛选。
+    def recall(self, query: str, topic_id: str | None = None, top_k: int = 5, with_content: bool = True) -> dict[str, Any]:
+        """知识库语义召回.
+
+        通过向量/语义相似度，从指定知识库中召回与查询最相关的笔记片段。
         """
+        body: dict[str, Any] = {
+            "query": query,
+            "top_k": top_k,
+            "with_content": with_content,
+        }
+        if topic_id:
+            body["topic_id"] = topic_id
+        elif self.topic_id:
+            body["topic_id"] = self.topic_id
+        return self._request("POST", "/api/v1/resource/note/recall", json=body)
+
+    def query(self, topic: str, max_notes: int = 20, **kwargs: Any) -> list[dict[str, Any]]:
+        """根据选题查询相关笔记.
+
+        如果配置了 topic_id，优先使用知识库语义召回；
+        否则回退到拉取最近笔记并按关键词筛选。
+        """
+        effective_topic_id = kwargs.get("topic_id") or self.topic_id
+        if effective_topic_id:
+            return self._query_by_recall(topic, effective_topic_id, max_notes)
+
         keywords = self._extract_keywords(topic)
         all_notes: list[dict[str, Any]] = []
         cursor: str | None = None
@@ -95,6 +130,26 @@ class GetNoteSource(KnowledgeSource):
             }
             for note, score in selected
         ]
+
+    def _query_by_recall(self, topic: str, topic_id: str, max_notes: int) -> list[dict[str, Any]]:
+        """使用知识库语义召回答题."""
+        result = self.recall(query=topic, topic_id=topic_id, top_k=max_notes)
+        data = result.get("data", {})
+        notes = data.get("notes", data.get("results", []))
+
+        output: list[dict[str, Any]] = []
+        for item in notes:
+            note = item.get("note", item)
+            output.append(
+                {
+                    "content": note.get("content", item.get("snippet", "")),
+                    "title": note.get("title", ""),
+                    "source": f"getnote://note/{note.get('note_id', note.get('id', ''))}",
+                    "section": item.get("topic_name", ""),
+                    "score": item.get("score", 0.0),
+                }
+            )
+        return output
 
     def fetch_url(self, url: str) -> dict[str, Any]:
         """发送公众号文章链接给 Get笔记采集.

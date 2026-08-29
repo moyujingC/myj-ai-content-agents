@@ -29,6 +29,8 @@ class Config:
         self.getnote_api_key = os.getenv("GETNOTE_API_KEY", "")
         self.getnote_client_id = os.getenv("GETNOTE_CLIENT_ID", "")
         self.getnote_base_url = os.getenv("GETNOTE_BASE_URL", "https://openapi.biji.com/open")
+        # 默认语义召回的知识库 ID（可选）
+        self.getnote_topic_id = os.getenv("GETNOTE_TOPIC_ID", "")
 
         # Get笔记企业代授权配置（可选）
         self.getnote_grant_id = os.getenv("GETNOTE_GRANT_ID", "")

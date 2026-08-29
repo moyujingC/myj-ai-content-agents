@@ -37,6 +37,7 @@ class ContentUnitAgent:
                     api_key=self.config.getnote_api_key,
                     client_id=self.config.getnote_client_id,
                     base_url=self.config.getnote_base_url,
+                    topic_id=self.config.getnote_topic_id or None,
                 )
             )
         self.interview_skill = ContentInterviewSkill(sources)
